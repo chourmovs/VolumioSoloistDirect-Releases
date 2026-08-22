@@ -72,15 +72,16 @@ printf '%-18s %s\n\n' 'Plugin release' "$plugin_release"
 printf '%-18s %s\n' Architecture PASS
 
 cd "$workdir/soloist_direct"
-if [ -d /data/plugins/music_service/soloist_direct ]; then
-  printf '%s\n' 'Existing install   detected; using verified local reinstall path'
+plugin_dir=${SOLOIST_DIRECT_PLUGIN_DIR:-/data/plugins/music_service/soloist_direct}
+if [ -d "$plugin_dir" ]; then
+  printf '%-20s %s\n' 'Existing install' YES 'Upgrade method' 'volumio plugin update'
+  volumio plugin update || fail 'local plugin update failed'
+else
+  printf '%-20s %s\n' 'Existing install' NO 'Install method' 'volumio plugin install'
+  printf 'y\n' | volumio plugin install || fail 'local plugin installation failed'
 fi
-# Volumio 4 local-image testing verifies that `plugin install` handles both a
-# first installation and reinstall from a local package. There is no verified
-# local `volumio plugin update` command, so do not invent or use one here.
-printf 'y\n' | volumio plugin install || fail 'local plugin installation failed'
 printf '%-18s %s\n' Dependencies PASS
-printf '%-18s %s\n' 'Plugin install' PASS
+printf '%-18s %s\n' 'Plugin deployment' PASS
 printf '\n%s\n\n' 'Soloist Direct installed.'
 printf '%s\n' 'Open:' 'Settings → Plugins → Installed Plugins → Soloist Direct' '' \
   'Then configure your Spotify Soloist API key.'

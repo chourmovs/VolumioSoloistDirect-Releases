@@ -25,14 +25,15 @@ To select an immutable release explicitly:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/chourmovs/VolumioSoloistDirect-Releases/main/install.sh \
-  | SOLOIST_DIRECT_VERSION=v0.4.0-alpha.5 bash
+  | SOLOIST_DIRECT_VERSION=v0.4.0-alpha.6 bash
 ```
 
 The installer obtains the default from the strictly validated alpha channel,
 checks the downloaded archive against its published checksum, and then invokes
-the supported local `volumio plugin install` command. Re-running it installs the
-selected local package over the existing Soloist Direct installation; it does
-not operate on unrelated plugins.
+`volumio plugin install` for a fresh installation or `volumio plugin update` for
+an existing installation. An update preserves the existing plugin configuration,
+credentials, persistent data, and enabled state according to Volumio's update
+semantics; it does not operate on unrelated plugins.
 
 ## Raspberry Pi 3 manual alpha check
 
