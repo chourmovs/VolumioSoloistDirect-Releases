@@ -21,10 +21,14 @@ else
   fail 'curl or wget is required'
 fi
 
-volumio_output=$(volumio version 2>/dev/null) || fail 'could not determine Volumio version'
-volumio_version=$(printf '%s\n' "$volumio_output" | sed -n 's/.*\b\(4\.[0-9][0-9.]*\)\b.*/\1/p' | head -n 1)
-[ -n "$volumio_version" ] || fail 'Volumio 4 is required'
-os_codename=$(sed -n 's/^VERSION_CODENAME=//p' "${SOLOIST_DIRECT_OS_RELEASE:-/etc/os-release}" | tr -d '"' | head -n 1)
+os_release=${SOLOIST_DIRECT_OS_RELEASE:-/etc/os-release}
+[ -r "$os_release" ] || fail 'could not read Volumio OS release information'
+volumio_version=$(sed -n 's/^VOLUMIO_VERSION=//p' "$os_release" | head -n 1)
+case $volumio_version in
+  \"*\") volumio_version=${volumio_version#\"}; volumio_version=${volumio_version%\"} ;;
+esac
+case $volumio_version in 4.*) ;; *) fail 'Volumio 4 is required' ;; esac
+os_codename=$(sed -n 's/^VERSION_CODENAME=//p' "$os_release" | tr -d '"' | head -n 1)
 [ "$os_codename" = bookworm ] || fail "Volumio 4 on Bookworm is required (found ${os_codename:-unknown})"
 
 machine=$(uname -m)
