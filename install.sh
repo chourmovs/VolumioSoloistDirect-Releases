@@ -73,9 +73,38 @@ printf '%-18s %s\n' Architecture PASS
 
 cd "$workdir/soloist_direct"
 plugin_dir=${SOLOIST_DIRECT_PLUGIN_DIR:-/data/plugins/music_service/soloist_direct}
+state_dir=${SOLOIST_DIRECT_STATE_DIR:-/data/soloist-direct/state}
+marker=$state_dir/deployment-complete.json
+installed_cli=${SOLOIST_DIRECT_INSTALLED_CLI:-/usr/local/bin/soloist-direct}
 if [ -d "$plugin_dir" ]; then
   printf '%-20s %s\n' 'Existing install' YES 'Upgrade method' 'volumio plugin update'
-  volumio plugin update || fail 'local plugin update failed'
+  previous_marker=$(sha256sum "$marker" 2>/dev/null | awk '{print $1}' || true)
+  timeout_s=${SOLOIST_DIRECT_VOLUMIO_TIMEOUT_S:-300}
+  grace_s=${SOLOIST_DIRECT_VOLUMIO_GRACE_S:-5}
+  case $timeout_s:$grace_s in *[!0-9:]*) fail 'deployment timeout values must be integers' ;; esac
+  volumio plugin update & update_pid=$!
+  started=$(date +%s); verified=false; exited=false; update_rc=
+  while :; do
+    if ! kill -0 "$update_pid" 2>/dev/null; then
+      set +e; wait "$update_pid"; update_rc=$?; set -e; exited=true
+      [ "$update_rc" -eq 0 ] || fail 'local plugin update failed'
+    fi
+    current_marker=$(sha256sum "$marker" 2>/dev/null | awk '{print $1}' || true)
+    if [ -n "$current_marker" ] && [ "$current_marker" != "$previous_marker" ] && \
+       python3 -c 'import json,sys; marker=json.load(open(sys.argv[1],encoding="utf-8")); package=json.load(open(sys.argv[3],encoding="utf-8")); raise SystemExit(0 if marker.get("version")==sys.argv[2] and package.get("version")==sys.argv[2] else 1)' "$marker" "$plugin_release" "$plugin_dir/package.json" && \
+       [ -x "$installed_cli" ] && [ "$("$installed_cli" version 2>/dev/null)" = "$plugin_release" ]; then
+      verified=true
+    fi
+    $exited && { $verified && break; fail 'plugin update exited without a verified deployment'; }
+    elapsed=$(( $(date +%s) - started ))
+    if $verified && [ "$elapsed" -ge "$grace_s" ]; then
+      printf '%s\n' 'WARNING: deployment verified; terminating hung Volumio CLI wrapper' >&2
+      kill "$update_pid" 2>/dev/null || :; wait "$update_pid" 2>/dev/null || :
+      break
+    fi
+    [ "$elapsed" -lt "$timeout_s" ] || { kill "$update_pid" 2>/dev/null || :; wait "$update_pid" 2>/dev/null || :; fail 'plugin update timed out before deployment could be verified'; }
+    sleep 1
+  done
 else
   printf '%-20s %s\n' 'Existing install' NO 'Install method' 'volumio plugin install'
   printf 'y\n' | volumio plugin install || fail 'local plugin installation failed'
