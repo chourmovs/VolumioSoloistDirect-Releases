@@ -90,13 +90,20 @@ if [ -d "$plugin_dir" ]; then
       [ "$update_rc" -eq 0 ] || fail 'local plugin update failed'
     fi
     current_marker=$(sha256sum "$marker" 2>/dev/null | awk '{print $1}' || true)
+    currently_verified=false
     if [ -n "$current_marker" ] && [ "$current_marker" != "$previous_marker" ] && \
        python3 -c 'import json,sys; marker=json.load(open(sys.argv[1],encoding="utf-8")); package=json.load(open(sys.argv[3],encoding="utf-8")); raise SystemExit(0 if marker.get("version")==sys.argv[2] and package.get("version")==sys.argv[2] else 1)' "$marker" "$plugin_release" "$plugin_dir/package.json" && \
        [ -x "$installed_cli" ] && [ "$("$installed_cli" version 2>/dev/null)" = "$plugin_release" ]; then
+      currently_verified=true
+    fi
+    if $currently_verified; then
       if ! $verified; then
         verified=true
         verified_at=$(date +%s)
       fi
+    else
+      verified=false
+      verified_at=
     fi
     $exited && { $verified && break; fail 'plugin update exited without a verified deployment'; }
     now=$(date +%s)
