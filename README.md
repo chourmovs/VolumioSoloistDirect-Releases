@@ -25,7 +25,7 @@ To select an immutable release explicitly:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/chourmovs/VolumioSoloistDirect-Releases/main/install.sh \
-  | SOLOIST_DIRECT_VERSION=v0.4.0-alpha.9 bash
+  | SOLOIST_DIRECT_VERSION=v0.4.0-alpha.10 bash
 ```
 
 The installer obtains the default from the strictly validated alpha channel,

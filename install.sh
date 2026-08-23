@@ -83,7 +83,7 @@ if [ -d "$plugin_dir" ]; then
   grace_s=${SOLOIST_DIRECT_VOLUMIO_GRACE_S:-5}
   case $timeout_s:$grace_s in *[!0-9:]*) fail 'deployment timeout values must be integers' ;; esac
   volumio plugin update & update_pid=$!
-  started=$(date +%s); verified=false; exited=false; update_rc=
+  started=$(date +%s); verified=false; verified_at=; exited=false; update_rc=
   while :; do
     if ! kill -0 "$update_pid" 2>/dev/null; then
       set +e; wait "$update_pid"; update_rc=$?; set -e; exited=true
@@ -93,11 +93,15 @@ if [ -d "$plugin_dir" ]; then
     if [ -n "$current_marker" ] && [ "$current_marker" != "$previous_marker" ] && \
        python3 -c 'import json,sys; marker=json.load(open(sys.argv[1],encoding="utf-8")); package=json.load(open(sys.argv[3],encoding="utf-8")); raise SystemExit(0 if marker.get("version")==sys.argv[2] and package.get("version")==sys.argv[2] else 1)' "$marker" "$plugin_release" "$plugin_dir/package.json" && \
        [ -x "$installed_cli" ] && [ "$("$installed_cli" version 2>/dev/null)" = "$plugin_release" ]; then
-      verified=true
+      if ! $verified; then
+        verified=true
+        verified_at=$(date +%s)
+      fi
     fi
     $exited && { $verified && break; fail 'plugin update exited without a verified deployment'; }
-    elapsed=$(( $(date +%s) - started ))
-    if $verified && [ "$elapsed" -ge "$grace_s" ]; then
+    now=$(date +%s)
+    elapsed=$(( now - started ))
+    if $verified && [ $(( now - verified_at )) -ge "$grace_s" ]; then
       printf '%s\n' 'WARNING: deployment verified; terminating hung Volumio CLI wrapper' >&2
       kill "$update_pid" 2>/dev/null || :; wait "$update_pid" 2>/dev/null || :
       break
